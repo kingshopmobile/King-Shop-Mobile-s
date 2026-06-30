@@ -174,10 +174,81 @@
   
   /* ACTION BTNS */
   .action-btns { display:flex; gap:4px; }
+
+  /* ============================================================ */
+  /* LOGIN SCREEN */
+  /* ============================================================ */
+  .login-screen { position:fixed; inset:0; background:radial-gradient(circle at 50% 0%, #0e1f33, var(--bg) 65%); display:flex; align-items:center; justify-content:center; z-index:3000; padding:20px; }
+  .login-box { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:34px 30px; width:100%; max-width:340px; box-shadow:0 12px 40px rgba(0,0,0,0.6); display:flex; flex-direction:column; align-items:center; }
+  .login-logo { width:120px; height:auto; border-radius:10px; margin-bottom:8px; }
+  .login-tagline { font-size:10px; color:var(--text2); letter-spacing:2.2px; text-transform:uppercase; margin-bottom:22px; }
+  .login-title { font-size:17px; font-weight:800; color:var(--accent); margin-bottom:18px; align-self:flex-start; }
+  .login-box .form-group { width:100%; margin-bottom:13px; }
+  .login-error { color:var(--red); font-size:12px; font-weight:700; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:8px; padding:8px 11px; margin:-2px 0 13px; width:100%; text-align:center; }
+  .login-btn { width:100%; justify-content:center; padding:10px; font-size:13.5px; }
+  .login-footer { font-size:10px; color:var(--text2); margin-top:20px; letter-spacing:.4px; text-align:center; }
+
+  /* ============================================================ */
+  /* MOBILE MENU CONTROLS */
+  /* ============================================================ */
+  .menu-toggle { display:none; background:none; border:1px solid var(--border); color:var(--text); font-size:17px; cursor:pointer; width:34px; height:34px; border-radius:8px; align-items:center; justify-content:center; }
+  .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:99; }
+  .sidebar-overlay.open { display:block; }
+  .factura-grid { display:grid; grid-template-columns:1fr 360px; gap:16px; }
+
+  /* ============================================================ */
+  /* RESPONSIVE — TABLETS & MOBILE */
+  /* ============================================================ */
+  @media (max-width: 900px) {
+    .menu-toggle { display:flex; }
+    .sidebar { position:fixed; top:0; left:0; height:100vh; z-index:100; transform:translateX(-100%); transition:transform .25s ease; box-shadow:0 0 30px rgba(0,0,0,0.5); }
+    .sidebar.open { transform:translateX(0); }
+    .topbar { padding:10px 14px; gap:8px; flex-wrap:wrap; }
+    .topbar-title { font-size:13.5px; }
+    .user-badge { display:none; }
+    .page { padding:16px 14px; }
+    .kpi-grid { grid-template-columns:repeat(2,1fr); gap:10px; }
+    .chart-grid { grid-template-columns:1fr; }
+    .form-grid, .form-grid-2 { grid-template-columns:1fr; }
+    .factura-grid { grid-template-columns:1fr; }
+    .cierre-summary { grid-template-columns:1fr; gap:10px; }
+    .modal { width:94vw; padding:20px; }
+    .modal.wide { width:96vw; }
+    .inv-info { grid-template-columns:1fr; }
+    .card { overflow-x:auto; }
+    table { font-size:12px; }
+    th, td { padding:7px 8px; white-space:nowrap; }
+    .search-row { flex-wrap:wrap; }
+    .invoice-preview { padding:18px; }
+  }
+
+  @media (max-width: 480px) {
+    .kpi-grid { grid-template-columns:1fr; }
+    .kpi-val { font-size:19px; }
+    .page-header { flex-direction:column; gap:10px; }
+    .login-box { padding:26px 20px; }
+    .topbar-right { flex-wrap:wrap; gap:6px; }
+  }
 </style>
 </head>
 <body>
-<div class="app">
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <img id="login-logo" class="login-logo" alt="King Shop Mobile">
+    <div class="login-tagline">Sistema de Gestión</div>
+    <div class="login-title">🔐 Iniciar Sesión</div>
+    <div id="login-error" class="login-error" style="display:none;">Usuario o contraseña incorrectos</div>
+    <div class="form-group"><label>Usuario</label><input type="text" id="login-user" placeholder="Usuario" autocomplete="username"></div>
+    <div class="form-group"><label>Contraseña</label><input type="password" id="login-pass" placeholder="Contraseña" autocomplete="current-password"></div>
+    <button class="btn btn-primary login-btn" onclick="attemptLogin()">Ingresar</button>
+    <div class="login-footer">© King Shop Mobile · Cartagena</div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar(false)"></div>
+
+<div class="app" id="app-root" style="display:none;">
   <aside class="sidebar">
     <div class="logo-area">
       <img src="data:image/jpeg;base64,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" alt="King Shop Mobile" class="logo-img">
@@ -207,10 +278,14 @@
 
   <main class="main">
     <div class="topbar">
-      <div class="topbar-title" id="topbar-title">📊 Dashboard</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+        <div class="topbar-title" id="topbar-title">📊 Dashboard</div>
+      </div>
       <div class="topbar-right">
-        <div class="user-badge">👑 King Shop Mobile</div>
+        <div class="user-badge" id="user-badge">👑 kingshop</div>
         <button class="btn btn-primary btn-sm" onclick="goTo('facturacion')">➕ Nueva Venta</button>
+        <button class="btn btn-outline btn-sm" onclick="logout()" title="Cerrar sesión">🚪</button>
       </div>
     </div>
 
@@ -237,7 +312,7 @@
       <div class="page-header">
         <div><div class="page-title">🧾 Nueva Venta</div><div class="page-sub">Factura y registra la venta al instante</div></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 360px;gap:16px;">
+      <div class="factura-grid">
         <div>
           <div class="card">
             <div class="card-header"><span class="card-title">👤 Datos del Cliente</span></div>
@@ -506,6 +581,7 @@ function goTo(page){
   document.getElementById('topbar-title').textContent=TITLES[page]||page;
   const acts={dashboard:renderDashboard,productos:renderProductos,inventario:renderInventario,ventas:renderVentas,cierre:renderCierre,reportes:renderReportes,clientes:renderClientes,facturacion:renderFacturacion};
   if(acts[page])acts[page]();
+  toggleSidebar(false);
 }
 
 // ============================================================
@@ -998,6 +1074,55 @@ function updateClock(){
 }
 
 // ============================================================
+// LOGIN
+// ============================================================
+const APP_USER = 'kingshop';
+const APP_PASS = 'Cartagena2026$';
+let appStarted = false;
+
+function attemptLogin(){
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-error');
+  if(u === APP_USER && p === APP_PASS){
+    err.style.display = 'none';
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-root').style.display = 'flex';
+    document.getElementById('user-badge').textContent = '👑 ' + u;
+    if(!appStarted){ appStarted = true; init(); }
+  } else {
+    err.style.display = 'block';
+    document.getElementById('login-pass').value = '';
+  }
+}
+
+function logout(){
+  document.getElementById('app-root').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  toggleSidebar(false);
+}
+
+['login-user','login-pass'].forEach(id=>{
+  document.getElementById(id).addEventListener('keydown', e=>{ if(e.key==='Enter') attemptLogin(); });
+});
+
+// Reusa el mismo logo (base64) ya cargado en el sidebar, sin duplicarlo
+document.getElementById('login-logo').src = document.querySelector('.logo-img').src;
+
+// ============================================================
+// MENÚ MÓVIL
+// ============================================================
+function toggleSidebar(force){
+  const sb = document.querySelector('.sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  const open = force !== undefined ? force : !sb.classList.contains('open');
+  sb.classList.toggle('open', open);
+  ov.classList.toggle('open', open);
+}
+
+// ============================================================
 // INIT
 // ============================================================
 function init(){
@@ -1009,7 +1134,7 @@ function init(){
   updateClock();setInterval(updateClock,30000);
   renderDashboard();
 }
-init();
+
 </script>
 </body>
 </html>
