@@ -319,12 +319,13 @@
             <div class="card-header"><span class="card-title">👤 Datos del Cliente</span></div>
             <div style="padding:16px;">
               <div class="form-grid form-grid-2">
-                <div class="form-group"><label>Nombre del Cliente</label><input type="text" id="f-cliente" placeholder="Consumidor Final" list="clientes-list"><datalist id="clientes-list"></datalist></div>
+                <div class="form-group"><label>Nombre del Cliente</label><input type="text" id="f-cliente" placeholder="Consumidor Final" list="clientes-list" oninput="autoFillCliente()" onchange="autoFillCliente()"><datalist id="clientes-list"></datalist></div>
                 <div class="form-group"><label>Cédula / NIT</label><input type="text" id="f-cedula" placeholder="123456789"></div>
                 <div class="form-group"><label>Teléfono</label><input type="text" id="f-telefono" placeholder="300..."></div>
                 <div class="form-group"><label>Forma de Pago</label>
                   <select id="f-pago"><option>Efectivo</option><option>Tarjeta Débito</option><option>Tarjeta Crédito</option><option>Transferencia / Nequi</option><option>Crédito / Cuotas</option></select>
                 </div>
+                <div class="form-group"><label>Vendedor</label><input type="text" id="f-vendedor" placeholder="Nombre del vendedor" list="vendedores-list"><datalist id="vendedores-list"></datalist></div>
                 <div class="form-group full"><label>Notas / Observaciones</label><input type="text" id="f-notas" placeholder="Observaciones..."></div>
               </div>
             </div>
@@ -336,6 +337,7 @@
                 <div class="form-group"><label>Producto</label><select id="f-prod-sel" onchange="autoFillPrice()"><option value="">— Seleccionar —</option></select></div>
                 <div class="form-group"><label>Precio Unitario ($)</label><input type="number" id="f-precio" placeholder="0"></div>
                 <div class="form-group"><label>Cantidad</label><input type="number" id="f-qty" value="1" min="1"></div>
+                <div class="form-group"><label>IMEI (opcional)</label><input type="text" id="f-imei" placeholder="000000000000000" maxlength="17"></div>
               </div>
               <button class="btn btn-primary" onclick="agregarAlCarrito()">➕ Agregar al Carrito</button>
             </div>
@@ -454,6 +456,10 @@
         <tbody id="tabla-clientes"></tbody></table>
       </div>
     </div>
+
+    <footer style="text-align:center;padding:16px 10px 10px;color:var(--text2);font-size:11.5px;letter-spacing:.3px;">
+      Todos los derechos reservados Christian Julio 2026
+    </footer>
   </main>
 </div>
 
@@ -609,19 +615,13 @@ async function loadState(){
 // SEED
 // ============================================================
 function seedData() {
-  DB.productos = [
-    {id:'P001',codigo:'KSM-IP15P',nombre:'iPhone 15 Pro 256GB',cat:'Celulares Nuevos',precio:4800000,costo:3800000,stock:5,min:2,desc:'iPhone 15 Pro Titanio Natural'},
-    {id:'P002',codigo:'KSM-IP14U',nombre:'iPhone 14 128GB (Usado)',cat:'Celulares Usados',precio:2200000,costo:1600000,stock:3,min:1,desc:'iPhone 14 reacondicionado A+'},
-    {id:'P003',codigo:'KSM-SGS24',nombre:'Samsung Galaxy S24 Ultra',cat:'Celulares Nuevos',precio:5200000,costo:4000000,stock:2,min:1,desc:'Galaxy S24 Ultra 256GB Negro'},
-    {id:'P004',codigo:'KSM-CASE1',nombre:'Case iPhone 15 Pro',cat:'Accesorios',precio:45000,costo:15000,stock:20,min:5,desc:'Protector silicona premium'},
-    {id:'P005',codigo:'KSM-CGR20',nombre:'Cargador 20W USB-C',cat:'Accesorios',precio:35000,costo:12000,stock:15,min:5,desc:'Cargador rápido compatible'},
-    {id:'P006',codigo:'KSM-IP13U',nombre:'iPhone 13 128GB (Usado)',cat:'Celulares Usados',precio:1600000,costo:1100000,stock:1,min:2,desc:'iPhone 13 reacondicionado'},
-  ];
+  DB.productos = [];
   DB.clientes = [
     {id:'C001',nombre:'María García',cedula:'45678901',telefono:'3001234567',email:'maria@email.com',dir:'Calle 30 #15-20'},
     {id:'C002',nombre:'Carlos López',cedula:'12345678',telefono:'3157654321',email:'',dir:'Av. Blas de Lezo'},
   ];
-  DB.movimientos=DB.productos.map(p=>({fecha:new Date().toISOString().split('T')[0],hora:'09:00',producto:p.nombre,tipo:'Stock Inicial',cantidad:p.stock,ref:'Apertura',user:'Admin'}));
+  DB.ventas = [];
+  DB.movimientos = [];
 }
 
 // ============================================================
@@ -819,6 +819,15 @@ function refreshSelectores(){
   const s=document.getElementById('f-prod-sel');
   if(s){const pv=s.value;s.innerHTML='<option value="">— Seleccionar —</option>'+DB.productos.map(p=>`<option value="${p.id}" data-precio="${p.precio}">${p.nombre} — ${fmt(p.precio)} (Stock: ${p.stock})</option>`).join('');if(pv)s.value=pv;}
   const dl=document.getElementById('clientes-list');if(dl){dl.innerHTML='';DB.clientes.forEach(c=>{const o=document.createElement('option');o.value=c.nombre;dl.appendChild(o);});}
+  const dv=document.getElementById('vendedores-list');if(dv){const vs=[...new Set(DB.ventas.map(v=>v.vendedor).filter(Boolean))];dv.innerHTML='';vs.forEach(v=>{const o=document.createElement('option');o.value=v;dv.appendChild(o);});}
+}
+function autoFillCliente(){
+  const nombre=document.getElementById('f-cliente').value.trim();
+  const c=DB.clientes.find(x=>x.nombre.toLowerCase()===nombre.toLowerCase());
+  if(c){
+    document.getElementById('f-cedula').value=c.cedula||'';
+    document.getElementById('f-telefono').value=c.telefono||'';
+  }
 }
 function renderFacturacion(){refreshSelectores();}
 function autoFillPrice(){const s=document.getElementById('f-prod-sel');const o=s.options[s.selectedIndex];if(o?.dataset.precio)document.getElementById('f-precio').value=o.dataset.precio;}
@@ -827,14 +836,16 @@ function agregarAlCarrito(){
   const pid=document.getElementById('f-prod-sel').value;
   const precio=parseFloat(document.getElementById('f-precio').value)||0;
   const qty=parseInt(document.getElementById('f-qty').value)||1;
+  const imei=document.getElementById('f-imei').value.trim();
   if(!pid){toast('Selecciona un producto',true);return;}
   const prod=DB.productos.find(p=>p.id===pid);
   if(!prod)return;
   if(qty>prod.stock){toast(`Stock insuficiente. Disponible: ${prod.stock}`,true);return;}
-  const ex=carrito.find(i=>i.prodId===pid);
+  const ex=!imei&&carrito.find(i=>i.prodId===pid&&!i.imei);
   if(ex){if(ex.qty+qty>prod.stock){toast('Stock insuficiente',true);return;}ex.qty+=qty;ex.subtotal=ex.precio*ex.qty;}
-  else carrito.push({prodId:pid,nombre:prod.nombre,precio,qty,subtotal:precio*qty});
+  else carrito.push({prodId:pid,nombre:prod.nombre,imei,precio,qty,subtotal:precio*qty});
   document.getElementById('f-qty').value=1;
+  document.getElementById('f-imei').value='';
   renderCarrito();toast(`✅ ${prod.nombre} agregado`);
 }
 
@@ -846,6 +857,7 @@ function renderCarrito(){
     <div class="cart-item">
       <div style="flex:1">
         <div class="cart-item-name">${item.nombre}</div>
+        ${item.imei?`<div class="cart-item-detail" style="color:var(--accent)">IMEI: ${item.imei}</div>`:''}
         <div class="cart-item-detail">${fmt(item.precio)} × ${item.qty} = <strong style="color:var(--accent)">${fmt(item.subtotal)}</strong></div>
       </div>
       <div style="display:flex;align-items:center;gap:4px;">
@@ -871,11 +883,12 @@ function finalizarVenta(){
   const cedula=document.getElementById('f-cedula').value;
   const telefono=document.getElementById('f-telefono').value;
   const pago=document.getElementById('f-pago').value;
+  const vendedor=document.getElementById('f-vendedor').value.trim();
   const notas=document.getElementById('f-notas').value;
   const total=carrito.reduce((s,i)=>s+i.subtotal,0);
   DB.facturaCounter++;
   const now=new Date();
-  const venta={id:'F'+DB.facturaCounter,fecha:now.toISOString().split('T')[0],hora:now.toTimeString().slice(0,5),cliente,cedula,telefono,pago,notas,items:[...carrito],total};
+  const venta={id:'F'+DB.facturaCounter,fecha:now.toISOString().split('T')[0],hora:now.toTimeString().slice(0,5),cliente,cedula,telefono,pago,vendedor,notas,items:[...carrito],total};
   DB.ventas.push(venta);
   carrito.forEach(item=>{
     const p=DB.productos.find(x=>x.id===item.prodId);
@@ -902,7 +915,7 @@ function verFactura(id){
 }
 
 function generarHTMLFactura(v){
-  const rows=v.items.map(i=>`<tr><td>${i.nombre}</td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${fmt(i.precio)}</td><td style="text-align:right;font-weight:800">${fmt(i.subtotal)}</td></tr>`).join('');
+  const rows=v.items.map(i=>`<tr><td>${i.nombre}${i.imei?'<br><span style="font-size:10px;color:#0369a1">IMEI: '+i.imei+'</span>':''}</td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${fmt(i.precio)}</td><td style="text-align:right;font-weight:800">${fmt(i.subtotal)}</td></tr>`).join('');
   return `<div class="invoice-preview">
     <div class="inv-header">
       <div style="display:flex;align-items:center;gap:12px">
@@ -920,7 +933,7 @@ function generarHTMLFactura(v){
     </div>
     <div class="inv-info">
       <div class="inv-info-block"><strong>Cliente</strong><p>${v.cliente}${v.cedula?'<br>CC/NIT: '+v.cedula:''}${v.telefono?'<br>Tel: '+v.telefono:''}${v.notas?'<br>Nota: '+v.notas:''}</p></div>
-      <div class="inv-info-block"><strong>Pago</strong><p>${v.pago}<br><span style="color:#0369a1;font-weight:900">✓ PAGADO</span></p></div>
+      <div class="inv-info-block"><strong>Pago</strong><p>${v.pago}${v.vendedor?'<br>Vendedor: '+v.vendedor:''}<br><span style="color:#0369a1;font-weight:900">✓ PAGADO</span></p></div>
     </div>
     <table class="inv-table"><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio Unit.</th><th style="text-align:right">Total</th></tr></thead><tbody>${rows}</tbody></table>
     <table class="inv-totals" align="right">
@@ -961,8 +974,9 @@ function descargarFacturaPDF(){
   if(v.cedula)doc.text('CC: '+v.cedula,14,62);
   if(v.telefono)doc.text('Tel: '+v.telefono,14,67);
   doc.text(v.pago,116,57);
+  if(v.vendedor)doc.text('Vendedor: '+v.vendedor,116,62);
   doc.setTextColor(3,105,161);doc.setFont('helvetica','bold');
-  doc.text('✓ PAGADO',116,63);
+  doc.text('✓ PAGADO',116,67);
   // Tabla
   let y=78;
   doc.setFillColor(3,105,161);doc.rect(10,y,190,8,'F');
@@ -970,12 +984,14 @@ function descargarFacturaPDF(){
   doc.text('Producto',13,y+5.5);doc.text('Cant.',135,y+5.5,{align:'center'});doc.text('Precio Unit.',166,y+5.5,{align:'right'});doc.text('Total',198,y+5.5,{align:'right'});
   y+=8;doc.setTextColor(0,0,0);doc.setFont('helvetica','normal');
   v.items.forEach((item,i)=>{
-    if(i%2===0){doc.setFillColor(240,249,255);doc.rect(10,y,190,8,'F');}
+    const rowH=item.imei?11.5:8;
+    if(i%2===0){doc.setFillColor(240,249,255);doc.rect(10,y,190,rowH,'F');}
     doc.text(item.nombre.substring(0,46),13,y+5.5);
     doc.text(String(item.qty),135,y+5.5,{align:'center'});
     doc.text(fmt(item.precio),166,y+5.5,{align:'right'});
     doc.text(fmt(item.subtotal),198,y+5.5,{align:'right'});
-    y+=8;
+    if(item.imei){doc.setFontSize(7);doc.setTextColor(3,105,161);doc.text('IMEI: '+item.imei,13,y+9.5);doc.setFontSize(8);doc.setTextColor(0,0,0);}
+    y+=rowH;
   });
   y+=6;doc.setDrawColor(3,105,161);doc.line(132,y,200,y);y+=5;
   doc.text('Subtotal:',134,y);doc.text(fmt(v.total),198,y,{align:'right'});y+=5;
@@ -1149,6 +1165,7 @@ function attemptLogin(){
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-root').style.display = 'flex';
     document.getElementById('user-badge').textContent = '👑 ' + u;
+    try{ localStorage.setItem('ksm_session', u); }catch(e){}
     if(!appStarted){ appStarted = true; init(); }
   } else {
     err.style.display = 'block';
@@ -1161,12 +1178,24 @@ function logout(){
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
+  try{ localStorage.removeItem('ksm_session'); }catch(e){}
   toggleSidebar(false);
 }
 
 ['login-user','login-pass'].forEach(id=>{
   document.getElementById(id).addEventListener('keydown', e=>{ if(e.key==='Enter') attemptLogin(); });
 });
+
+// Mantiene la sesión activa al refrescar o actualizar la página
+try{
+  const sesionGuardada = localStorage.getItem('ksm_session');
+  if(sesionGuardada === APP_USER){
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-root').style.display = 'flex';
+    document.getElementById('user-badge').textContent = '👑 ' + sesionGuardada;
+    if(!appStarted){ appStarted = true; init(); }
+  }
+}catch(e){}
 
 // Reusa el mismo logo (base64) ya cargado en el sidebar, sin duplicarlo
 document.getElementById('login-logo').src = document.querySelector('.logo-img').src;
