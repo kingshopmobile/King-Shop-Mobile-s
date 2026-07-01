@@ -339,7 +339,7 @@
                   </select>
                 </div>
                 <div class="form-group"><label>Monto</label>
-                  <input type="number" id="f-monto1" placeholder="0" readonly style="opacity:.8;">
+                  <input type="number" id="f-monto1" placeholder="0" min="0" readonly style="opacity:.8;" oninput="actualizarMontosPago('m1')">
                 </div>
                 <div class="form-group full" id="f-financiera1-wrap" style="display:none;">
                   <label>Financiera</label>
@@ -357,7 +357,7 @@
                     </select>
                   </div>
                   <div class="form-group"><label>Monto Secundario</label>
-                    <input type="number" id="f-monto2" placeholder="0" min="0" oninput="actualizarMontosPago()">
+                    <input type="number" id="f-monto2" placeholder="0" min="0" oninput="actualizarMontosPago('m2')">
                   </div>
                   <div class="form-group full" id="f-financiera2-wrap" style="display:none;">
                     <label>Financiera</label>
@@ -951,9 +951,12 @@ function agregarPagoSecundario(){
   document.getElementById('pago-secundario-toggle').style.display='none';
   document.getElementById('pago-secundario-box').style.display='block';
   document.getElementById('f-pago2').selectedIndex=0;
-  document.getElementById('f-monto2').value=0;
   onCambioMetodoPago(2);
-  actualizarMontosPago();
+  const m1=document.getElementById('f-monto1');
+  m1.removeAttribute('readonly');
+  m1.style.opacity='1';
+  document.getElementById('f-monto2').value=0;
+  actualizarMontosPago('m1'); // arranca con 100% en el método principal, 0 en el secundario
 }
 function quitarPagoSecundario(){
   pagoSecundarioActivo=false;
@@ -963,6 +966,9 @@ function quitarPagoSecundario(){
   document.getElementById('f-pago2').selectedIndex=0;
   document.getElementById('f-financiera2-wrap').style.display='none';
   document.getElementById('f-financiera2').value='';
+  const m1=document.getElementById('f-monto1');
+  m1.setAttribute('readonly','readonly');
+  m1.style.opacity='.8';
   actualizarMontosPago();
 }
 function resetFormaPago(){
@@ -970,15 +976,25 @@ function resetFormaPago(){
   onCambioMetodoPago(1);
   quitarPagoSecundario();
 }
-function actualizarMontosPago(){
+// origen: 'm1' si el usuario editó el monto principal, 'm2' si editó el secundario, o vacío si se recalcula por cambios en el carrito
+function actualizarMontosPago(origen){
   const m1=document.getElementById('f-monto1'),m2=document.getElementById('f-monto2');
   if(!m1)return;
   const total=carrito.reduce((s,i)=>s+i.subtotal,0);
   if(pagoSecundarioActivo){
-    let v2=parseFloat(m2.value)||0;
-    if(v2<0)v2=0;
-    if(v2>total)v2=total;
-    m1.value=Math.max(0,total-v2);
+    if(origen==='m2'){
+      let v2=parseFloat(m2.value)||0;
+      if(v2<0)v2=0;
+      if(v2>total)v2=total;
+      m1.value=Math.max(0,total-v2);
+    } else {
+      // el usuario editó el monto principal (o cambió el carrito): recalcula el secundario como el resto
+      let v1=parseFloat(m1.value)||0;
+      if(v1<0)v1=0;
+      if(v1>total)v1=total;
+      m1.value=v1;
+      m2.value=Math.max(0,total-v1);
+    }
   } else {
     m1.value=total;
     if(m2)m2.value=0;
@@ -987,12 +1003,12 @@ function actualizarMontosPago(){
 }
 function renderSaldoPagoInfo(total){
   const el=document.getElementById('pago-saldo-info');if(!el)return;
+  if(!total){el.style.color='var(--text2)';el.textContent='ℹ️ Agrega productos al carrito para habilitar los montos de pago.';return;}
   const m1=parseFloat(document.getElementById('f-monto1').value)||0;
   const m2=pagoSecundarioActivo?(parseFloat(document.getElementById('f-monto2').value)||0):0;
   const asignado=m1+m2;
-  if(!total){el.textContent='';return;}
   if(Math.abs(asignado-total)<1){el.style.color='var(--green)';el.textContent=`✅ Total del carrito: ${fmt(total)} — montos de pago asignados correctamente.`;}
-  else{el.style.color='var(--red)';el.textContent=`⚠️ Total del carrito: ${fmt(total)} — asignado: ${fmt(asignado)}. Ajusta el monto secundario.`;}
+  else{el.style.color='var(--red)';el.textContent=`⚠️ Total del carrito: ${fmt(total)} — asignado: ${fmt(asignado)}. Ajusta los montos.`;}
 }
 function autoFillPrice(){const s=document.getElementById('f-prod-sel');const o=s.options[s.selectedIndex];if(o?.dataset.precio)document.getElementById('f-precio').value=o.dataset.precio;}
 
